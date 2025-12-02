@@ -1,0 +1,215 @@
+---
+title: "NBA_Win_Percentage"
+output:
+  pdf_document: default
+  html_document: default
+date: "2025-11-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, setup2}
+# Install Once in Console
+# install.packages(c("tidyverse","janitor","lubridate","tidymodels","vip","finetune"))
+# install.packages("hoopR")
+
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(tidymodels)
+library(hoopR)
+library(vip)
+
+set.seed(123)
+
+df_raw <- load_nba_team_box(seasons = 2015:2024)
+
+# Check 
+df_raw %>% count(season) %>% arrange(season)
+unique(df_raw$season)
+
+```
+
+```{r, cleaning}
+
+df_team_season <- df_raw %>% 
+  filter(season_type == 2) %>%        # 2 = Regular season
+  group_by(season, team_id, team_abbreviation, team_name) %>% 
+  summarise(
+    games = n(),
+    wins  = sum(team_winner, na.rm = TRUE),   # TRUE = win
+    win_pct = wins / games,
+    
+    # per-game averages of all numeric stats (box score + scores)
+    across(where(is.numeric), mean, na.rm = TRUE),
+    
+    .groups = "drop"
+  )
+
+```
+
+```{r, EDA 1.1}
+df_team_season %>% 
+  summarise(
+    n_teams  = n(),
+    min_win  = min(win_pct),
+    max_win  = max(win_pct),
+    mean_win = mean(win_pct),
+    sd_win   = sd(win_pct)
+  )
+```
+
+```{r, EDA 1.2}
+#Quick Correlation for WIN PCT
+num_vars <- df_team_season %>% 
+  select(where(is.numeric))
+
+cor_with_win <- num_vars %>% 
+  summarise(across(everything(), ~ cor(.x, win_pct, use = "complete.obs"))) %>% 
+  pivot_longer(everything(), names_to = "variable", values_to = "cor_win_pct") %>% 
+  arrange(desc(abs(cor_win_pct)))
+
+head(cor_with_win, 20)
+
+```
+
+
+```{r, 3p v Win}
+df_team_season %>% 
+  ggplot(aes(x = three_point_field_goal_pct, y = win_pct)) +
+  geom_point(alpha = 0.7, color = "#d62728") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +
+  labs(
+    title = "Relationship Between 3-Point Percentage and Win Percentage",
+    x = "3-Point Field Goal Percentage",
+    y = "Win Percentage"
+  ) +
+  theme_minimal(base_size = 14)
+
+```
+
+# Add All Plots or Correlations here, leave RF Model at end 
+
+
+```{r, Modeling Data}
+df_model <- df_team_season %>% 
+  # drop obvious leaks / not useful predictors
+  select(
+    -wins,
+    -games,  
+  )
+
+set.seed(123)
+
+nba_split <- initial_split(df_model, prop = 0.8, strata = win_pct)
+nba_train <- training(nba_split)
+nba_test  <- testing(nba_split)
+
+nba_recipe <- recipe(win_pct ~ ., data = nba_train) %>% 
+  # Mark ID columns so they’re not used as predictors
+  update_role(season, team_id, team_abbreviation, team_name, new_role = "ID") %>% 
+  
+  
+  step_zv(all_predictors()) %>% 
+  step_impute_median(all_numeric_predictors()) %>% 
+  step_normalize(all_numeric_predictors())
+
+```
+
+```{r, RF model}
+rf_spec <- rand_forest(
+  mtry  = tune(),
+  min_n = tune(),
+  trees = 1000
+) %>% 
+  set_mode("regression") %>% 
+  set_engine("ranger", importance = "impurity")
+
+#Cross Validation
+set.seed(123)
+nba_folds <- vfold_cv(nba_train, v = 5, strata = win_pct)
+
+# Workflow
+rf_workflow <- workflow() %>% 
+  add_model(rf_spec) %>% 
+  add_recipe(nba_recipe)
+
+#Small Tuning Grid
+rf_grid <- grid_regular(
+  mtry(range = c(5, 30)),
+  min_n(range = c(2, 15)),
+  levels = 5
+)
+
+#Tune
+rf_tuned <- tune_grid(
+  rf_workflow,
+  resamples = nba_folds,
+  grid = rf_grid,
+  metrics = metric_set(rmse, rsq)
+)
+
+collect_metrics(rf_tuned) %>% 
+  arrange(mean)
+
+#Pick Best and Refit
+best_rf <- select_best(rf_tuned, metric = "rmse")
+
+rf_final_wf <- finalize_workflow(rf_workflow, best_rf)
+
+rf_fit <- fit(rf_final_wf, data = nba_train)
+
+```
+
+```{r, RF Performance}
+rf_test_preds <- predict(rf_fit, new_data = nba_test) %>% 
+  bind_cols(nba_test %>% select(win_pct))
+
+rf_test_preds %>% 
+  metrics(truth = win_pct, estimate = .pred)
+
+```
+
+```{r, RF Var Imp}
+rf_fit_ranger <- rf_fit %>% 
+  extract_fit_parsnip() %>% 
+  pluck("fit")
+
+vip(rf_fit_ranger, num_features = 20)
+```
+
+```{r, Var Table}
+var_imp <- rf_fit_ranger$variable.importance %>% 
+  sort(decreasing = TRUE)
+
+head(var_imp, 30)
+
+```
+
+```{r, Linear}
+lm_spec <- linear_reg() %>% 
+  set_engine("lm")
+
+lm_wf <- workflow() %>% 
+  add_model(lm_spec) %>% 
+  add_recipe(nba_recipe)
+
+lm_fit <- fit(lm_wf, data = nba_train)
+
+tidy(lm_fit) %>% 
+  arrange(desc(abs(estimate))) %>% 
+  head(20)
+
+```
+
+
+
+## Summary
+### Interpretation of Variable Importance for Predicting Win Percentage
+
+The random forest model identifies which team statistics are most strongly associated with overall winning percentage across all NBA seasons from 2015–2024. The most important predictor by far is three-point field goal percentage, followed by several offensive and defensive efficiency indicators such as scoring, opponent scoring, free throws made, and defensive rebounding.
+
+Overall, the model suggests that efficient shooting—especially from three, limiting opponent scoring, and winning key possession battles (rebounds, blocks, turnovers) are the strongest predictors of a successful season.
+
