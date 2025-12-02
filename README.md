@@ -8,7 +8,6 @@ Data is collected directly through the hoopR API, cleaned and aggregated using t
 
 ## Project Structure
 ### NBA-Win-Percentage-Project/
-### │
 ### ├── nba_win_percentage.Rmd              # Source code (R Markdown)
 ### ├── nba_win_percentage_report.html      # Knitted report (PDF)
 ### ├── README.md                           # Project documentation (this file)
