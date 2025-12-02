@@ -1,11 +1,11 @@
 # NBA_Win_Percentage
 ## Predictive modeling • Feature engineering • Random Forest • Linear Regression • Data Visualization
 
-## Built an end-to-end machine learning pipeline using 10 seasons of NBA team box-score data (2015–2024) to analyze which performance metrics best predict a team’s season win percentage.
+Built an end-to-end machine learning pipeline using 10 seasons of NBA team box-score data (2015–2024) to analyze which performance metrics best predict a team’s season win percentage.
 
 ## Tools & Libraries
 
-### R, tidyverse, tidymodels, hoopR, ranger, vip, ggplot2
+R, tidyverse, tidymodels, hoopR, ranger, vip, ggplot2
 
 ## Project Steps & Methods
 
