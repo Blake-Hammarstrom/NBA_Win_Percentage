@@ -7,11 +7,11 @@ This project analyzes 10 seasons of NBA team performance data (2015–2024) and 
 Data is collected directly through the hoopR API, cleaned and aggregated using tidyverse, and modeled using tidymodels.
 
 ## Project Structure
-NBA-Win-Percentage-Project/
+### NBA-Win-Percentage-Project/
 ### │
 ### ├── nba_win_percentage.Rmd              # Source code (R Markdown)
 ### ├── nba_win_percentage_report.html      # Knitted report (PDF)
-### |── README.md                           # Project documentation (this file)
+### ├── README.md                           # Project documentation (this file)
 
 
 ## Objectives
