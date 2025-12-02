@@ -1,12 +1,12 @@
-NBA Win Percentage Prediction (2015–2024)
+# NBA Win Percentage Prediction (2015–2024)
 
-Machine Learning • R • Random Forest • Linear Regression • Feature Engineering
+## Machine Learning • R • Random Forest • Linear Regression • Feature Engineering
 
 This project analyzes 10 seasons of NBA team performance data (2015–2024) and builds machine learning models to predict team win percentage using season-long box-score statistics.
 
 Data is collected directly through the hoopR API, cleaned and aggregated using tidyverse, and modeled using tidymodels.
 
-Project Structure
+## Project Structure
 NBA-Win-Percentage-Project/
 │
 ├── nba_win_percentage.Rmd              # Source code (R Markdown)
@@ -14,7 +14,7 @@ NBA-Win-Percentage-Project/
 |── README.md                           # Project documentation (this file)
 
 
-Objectives
+## Objectives
 
 Explore statistical drivers of NBA team success
 
@@ -26,7 +26,7 @@ Identify the most important features influencing wins
 
 Visualize relationships between key performance metrics
 
-Data Source
+## Data Source
 
 Data is loaded using the hoopR package:
 
@@ -47,7 +47,7 @@ Rebounding & possession metrics
 
 Data is aggregated into per-game team season averages.
 
-Data Cleaning & Feature Engineering
+## Data Cleaning & Feature Engineering
 
 Filtered for regular-season games
 
@@ -63,20 +63,7 @@ per-game averages for all numeric box-score statistics
 
 Removed ID columns and any data leakage variables from modeling
 
-Example transformation:
-
-df_team_season <- df_raw %>% 
-  filter(season_type == 2) %>% 
-  group_by(season, team_id, team_abbreviation, team_name) %>% 
-  summarise(
-    games = n(),
-    wins  = sum(team_winner, na.rm = TRUE),
-    win_pct = wins / games,
-    across(where(is.numeric), mean, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-Exploratory Data Analysis
+## Exploratory Data Analysis
 
 Key analyses include:
 
@@ -97,7 +84,7 @@ Modeling Approach
 Train/Test Split
 nba_split <- initial_split(df_model, prop = 0.8, strata = win_pct)
 
-Preprocessing
+## Preprocessing
 
 Using a recipe():
 
@@ -107,7 +94,7 @@ Impute missing values
 
 Normalize numeric predictors
 
-Models Built
+## Models Built
 
 1. Random Forest (Tuned using Cross-Validation)
 
@@ -137,7 +124,7 @@ Variable importance was extracted using:
 
 vip(rf_fit_ranger, num_features = 20)
 
-Key Findings
+## Key Findings
 1. Three-point efficiency is the strongest predictor of win percentage
 
 Across all seasons from 2015–2024, 3-point field goal percentage consistently ranked as the most important factor.
@@ -158,7 +145,7 @@ These were strong predictors of success.
 
 RF provided lower RMSE and better generalization, though R² remained moderate due to the inherent complexity of NBA performance.
 
-Technologies Used
+## Technologies Used
 
 R
 
@@ -174,7 +161,7 @@ vip
 
 ggplot2
 
-How to Run the Project
+## How to Run the Project
 
 Clone the repository
 
